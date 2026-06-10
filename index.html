@@ -557,7 +557,7 @@
 
 <script>
 // ── CONFIG — reemplazá con tu URL de Google Apps Script ───────────────────
-const APPS_SCRIPT_URL = "PEGAR_URL_AQUI";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzaRvQcDhESZqrjzK-CsGYbUNwA3GcZmvo652PKc1eZuKh-LSW99SOTZ6Hep8WjnECD/exec";
 
 // ── STATE ────────────────────────────────────────────────────────────────
 const TOTAL = 7;
@@ -705,13 +705,6 @@ async function submitForm() {
   const btnNext = document.getElementById("btn-next");
   btnNext.textContent = "Enviando…";
   btnNext.disabled = true;
-
-  if (APPS_SCRIPT_URL === "PEGAR_URL_AQUI") {
-    // Demo mode: simulate success
-    await new Promise(r => setTimeout(r, 900));
-    showSuccess(data.nombre);
-    return;
-  }
 
   try {
     await fetch(APPS_SCRIPT_URL, {
