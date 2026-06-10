@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Relevamiento · Panificadora</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --wheat:   #F5EDD6;
+    --crust:   #C17F3A;
+    --dough:   #E8C98A;
+    --ink:     #1A1208;
+    --smoke:   #6B5C44;
+    --white:   #FDFAF5;
+    --ok:      #3A7D44;
+    --danger:  #B03A2E;
+    --radius:  16px;
+    --shadow:  0 4px 24px rgba(26,18,8,.13);
+  }
+
+  body {
+    background: var(--wheat);
+    font-family: 'Georgia', serif;
+    color: var(--ink);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ─────────────────────────────────────── */
+  header {
+    background: var(--crust);
+    color: var(--wheat);
+    padding: 14px 20px 10px;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,.25);
+  }
+  header h1 { font-size: 1.05rem; font-weight: normal; letter-spacing: .03em; }
+  header small { font-size: .75rem; opacity: .75; font-style: italic; }
+
+  /* ── PROGRESS BAR ────────────────────────────────── */
+  .progress-wrap {
+    background: var(--dough);
+    height: 6px;
+  }
+  .progress-bar {
+    height: 6px;
+    background: var(--crust);
+    transition: width .35s ease;
+    border-radius: 0 4px 4px 0;
+  }
+
+  /* ── STEP INDICATOR ──────────────────────────────── */
+  .step-indicator {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 16px 6px;
+  }
+  .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--dough);
+    transition: background .3s;
+  }
+  .dot.active  { background: var(--crust); transform: scale(1.25); }
+  .dot.done    { background: var(--smoke); }
+
+  /* ── SECTION LABEL ───────────────────────────────── */
+  .section-label {
+    text-align: center;
+    font-size: .72rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--smoke);
+    padding: 2px 0 10px;
+  }
+
+  /* ── CARD ────────────────────────────────────────── */
+  .card {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin: 0 16px 20px;
+    padding: 24px 20px 20px;
+    display: none;
+    animation: slideIn .28s ease;
+  }
+  .card.active { display: block; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-title {
+    font-size: 1.25rem;
+    color: var(--crust);
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+  .card-sub {
+    font-size: .82rem;
+    color: var(--smoke);
+    margin-bottom: 20px;
+    font-style: italic;
+  }
+
+  /* ── FIELD ───────────────────────────────────────── */
+  .field { margin-bottom: 18px; }
+  .field:last-child { margin-bottom: 0; }
+
+  label {
+    display: block;
+    font-size: .82rem;
+    font-weight: bold;
+    color: var(--smoke);
+    margin-bottom: 6px;
+    letter-spacing: .02em;
+  }
+  label .req { color: var(--crust); }
+
+  input[type="text"],
+  input[type="tel"],
+  input[type="date"],
+  input[type="number"],
+  select, textarea {
+    width: 100%;
+    background: var(--wheat);
+    border: 2px solid var(--dough);
+    border-radius: 10px;
+    padding: 13px 14px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--ink);
+    outline: none;
+    transition: border-color .2s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--crust);
+    background: #fff;
+  }
+  textarea { min-height: 90px; resize: vertical; }
+
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M0 0l6 8 6-8z' fill='%23C17F3A'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 38px;
+  }
+
+  /* ── CHECKBOX GROUP ──────────────────────────────── */
+  .check-group { display: flex; flex-direction: column; gap: 10px; }
+  .check-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--wheat);
+    border: 2px solid var(--dough);
+    border-radius: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    font-size: .95rem;
+  }
+  .check-item:active { background: var(--dough); }
+  .check-item input[type="checkbox"] {
+    width: 20px; height: 20px; flex-shrink: 0;
+    accent-color: var(--crust);
+    border-radius: 4px;
+    padding: 0;
+    border: none;
+  }
+  .check-item.checked {
+    border-color: var(--crust);
+    background: #fdf3e3;
+  }
+
+  /* ── RATING ──────────────────────────────────────── */
+  .rating-group {
+    display: flex; gap: 8px; justify-content: space-between;
+  }
+  .rating-btn {
+    flex: 1;
+    padding: 14px 0;
+    border: 2px solid var(--dough);
+    border-radius: 10px;
+    background: var(--wheat);
+    font-size: 1.1rem;
+    cursor: pointer;
+    text-align: center;
+    transition: all .2s;
+    color: var(--ink);
+  }
+  .rating-btn.sel {
+    border-color: var(--crust);
+    background: var(--crust);
+    color: var(--white);
+    font-weight: bold;
+  }
+
+  /* ── NAVIGATION ──────────────────────────────────── */
+  .nav {
+    display: flex;
+    gap: 12px;
+    padding: 0 16px 16px;
+  }
+  .btn {
+    flex: 1;
+    padding: 16px;
+    border-radius: 12px;
+    border: none;
+    font-size: 1rem;
+    font-family: inherit;
+    cursor: pointer;
+    font-weight: bold;
+    transition: opacity .2s, transform .1s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-back {
+    background: var(--dough);
+    color: var(--smoke);
+    flex: 0 0 80px;
+  }
+  .btn-next {
+    background: var(--crust);
+    color: var(--white);
+  }
+  .btn-send {
+    background: var(--ok);
+    color: #fff;
+  }
+
+  /* ── TOAST ───────────────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--wheat);
+    padding: 12px 24px; border-radius: 30px;
+    font-size: .9rem; z-index: 999;
+    opacity: 0; pointer-events: none;
+    transition: opacity .3s;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ── SUCCESS SCREEN ──────────────────────────────── */
+  #success {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 60px 24px 32px;
+    gap: 16px;
+  }
+  #success.active { display: flex; }
+  #success .icon { font-size: 4rem; }
+  #success h2 { font-size: 1.5rem; color: var(--ok); }
+  #success p  { color: var(--smoke); font-size: .95rem; line-height: 1.6; }
+  #success .btn { max-width: 280px; width: 100%; }
+
+  /* ── ERROR MSG ───────────────────────────────────── */
+  .err-msg {
+    font-size: .78rem;
+    color: var(--danger);
+    margin-top: 5px;
+    display: none;
+  }
+  .field.invalid input,
+  .field.invalid select,
+  .field.invalid textarea {
+    border-color: var(--danger);
+  }
+  .field.invalid .err-msg { display: block; }
+
+  /* Spacer at bottom so nav doesn't cover content */
+  .spacer { height: 80px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🥖 Relevamiento de Puntos de Venta</h1>
+  <small id="header-sub">Identificación del negocio</small>
+</header>
+<div class="progress-wrap"><div class="progress-bar" id="pbar"></div></div>
+
+<div class="step-indicator" id="dots"></div>
+<div class="section-label" id="sec-label"></div>
+
+<!-- ════════════ CARDS ════════════ -->
+
+<!-- CARD 1: Identificación -->
+<div class="card active" id="card-1">
+  <div class="card-title">¿Dónde estás?</div>
+  <div class="card-sub">Datos básicos del negocio</div>
+
+  <div class="field" id="f-nombre">
+    <label>Nombre del negocio <span class="req">*</span></label>
+    <input type="text" id="nombre" placeholder="Ej: Almacén Don Pedro">
+    <div class="err-msg">Completá el nombre del negocio</div>
+  </div>
+
+  <div class="field" id="f-tipo">
+    <label>Tipo de negocio <span class="req">*</span></label>
+    <select id="tipo">
+      <option value="">— Elegir —</option>
+      <option>Kiosco</option><option>Almacén</option>
+      <option>Supermercado</option><option>Despensa</option>
+      <option>Minimercado</option><option>Verdulería</option>
+      <option>Panadería</option><option>Otro</option>
+    </select>
+    <div class="err-msg">Elegí el tipo de negocio</div>
+  </div>
+
+  <div class="field" id="f-direccion">
+    <label>Dirección / Barrio <span class="req">*</span></label>
+    <input type="text" id="direccion" placeholder="Ej: Av. Italia 345, Bº Centro">
+    <div class="err-msg">Completá la dirección</div>
+  </div>
+
+  <div class="field">
+    <label>Zona</label>
+    <select id="zona">
+      <option value="">— Elegir —</option>
+      <option>Centro</option><option>Norte</option><option>Sur</option>
+      <option>Este</option><option>Oeste</option>
+      <option>Bº Gral. Belgrano</option><option>Bº Industrial</option>
+      <option>Otro</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Link Google Maps</label>
+    <input type="text" id="maps" placeholder="Pegá el link de 'Compartir' de Maps">
+  </div>
+</div>
+
+<!-- CARD 2: Contacto -->
+<div class="card" id="card-2">
+  <div class="card-title">¿Con quién hablaste?</div>
+  <div class="card-sub">Datos de contacto del negocio</div>
+
+  <div class="field">
+    <label>Nombre del dueño / encargado</label>
+    <input type="text" id="duenio" placeholder="Nombre completo">
+  </div>
+  <div class="field">
+    <label>Teléfono / WhatsApp</label>
+    <input type="tel" id="telefono" placeholder="Ej: 3624-111222">
+  </div>
+  <div class="field">
+    <label>Horario de atención</label>
+    <input type="text" id="horario" placeholder="Ej: Lun-Sáb 7-21 h">
+  </div>
+</div>
+
+<!-- CARD 3: Compra de pan -->
+<div class="card" id="card-3">
+  <div class="card-title">¿Compra pan?</div>
+  <div class="card-sub">Situación actual con el pan</div>
+
+  <div class="field" id="f-vende">
+    <label>¿Vende pan actualmente? <span class="req">*</span></label>
+    <select id="vende">
+      <option value="">— Elegir —</option>
+      <option>Sí</option><option>No</option><option>A veces</option>
+    </select>
+    <div class="err-msg">Indicá si vende pan</div>
+  </div>
+
+  <div class="field">
+    <label>Tipos de pan que compra</label>
+    <div class="check-group" id="tipos-pan">
+      <label class="check-item"><input type="checkbox" value="Francés"> Francés</label>
+      <label class="check-item"><input type="checkbox" value="Mignón"> Mignón</label>
+      <label class="check-item"><input type="checkbox" value="Flauta"> Flauta</label>
+      <label class="check-item"><input type="checkbox" value="Hamburguesa"> Hamburguesa</label>
+      <label class="check-item"><input type="checkbox" value="Pebete"> Pebete</label>
+      <label class="check-item"><input type="checkbox" value="Molde"> Molde</label>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Otro tipo de pan</label>
+    <input type="text" id="otro-pan" placeholder="Especificar...">
+  </div>
+</div>
+
+<!-- CARD 4: Volumen y proveedor -->
+<div class="card" id="card-4">
+  <div class="card-title">¿Cuánto y a quién?</div>
+  <div class="card-sub">Volumen de compra y proveedor actual</div>
+
+  <div class="field">
+    <label>Volumen diario estimado (kg)</label>
+    <input type="number" id="volumen" placeholder="Ej: 15" min="0">
+  </div>
+
+  <div class="field">
+    <label>Días por semana que compra</label>
+    <select id="dias">
+      <option value="">— Elegir —</option>
+      <option>1</option><option>2</option><option>3</option>
+      <option>4</option><option>5</option><option>6</option><option>7</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Proveedor actual</label>
+    <input type="text" id="proveedor" placeholder="Nombre de la panadería / empresa">
+  </div>
+
+  <div class="field">
+    <label>Precio que paga</label>
+    <input type="text" id="precio" placeholder="Ej: $3200/kg">
+  </div>
+
+  <div class="field">
+    <label>¿Cómo recibe el pan?</label>
+    <select id="como-recibe">
+      <option value="">— Elegir —</option>
+      <option>Lo busca él</option><option>Se lo traen</option><option>Mixto</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Horario de entrega preferido</label>
+    <input type="text" id="horario-entrega" placeholder="Ej: 6-8 AM">
+  </div>
+</div>
+
+<!-- CARD 5: Problemas e interés -->
+<div class="card" id="card-5">
+  <div class="card-title">¿Está conforme?</div>
+  <div class="card-sub">Problemas con el proveedor actual e interés en cambiar</div>
+
+  <div class="field">
+    <label>¿Tiene problemas con su proveedor?</label>
+    <select id="problema">
+      <option value="">— Elegir —</option>
+      <option>No</option>
+      <option>Sí - faltante</option><option>Sí - calidad</option>
+      <option>Sí - precio</option><option>Sí - puntualidad</option>
+      <option>Otro</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Interés en cambiar de proveedor <span class="req">*</span></label>
+    <div class="rating-group" id="interes-rating">
+      <button class="rating-btn" data-v="1 - Ninguno"     onclick="setRating(this)">1<br><small>Ninguno</small></button>
+      <button class="rating-btn" data-v="2 - Poco"        onclick="setRating(this)">2<br><small>Poco</small></button>
+      <button class="rating-btn" data-v="3 - Neutro"      onclick="setRating(this)">3<br><small>Neutro</small></button>
+      <button class="rating-btn" data-v="4 - Interesado"  onclick="setRating(this)">4<br><small>Interesado</small></button>
+      <button class="rating-btn" data-v="5 - Muy"         onclick="setRating(this)">5<br><small>Muy</small></button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>¿Qué mejoraría de su proveedor?</label>
+    <textarea id="mejora" placeholder="Respuesta libre..."></textarea>
+  </div>
+</div>
+
+<!-- CARD 6: Condiciones -->
+<div class="card" id="card-6">
+  <div class="card-title">Condiciones de compra</div>
+  <div class="card-sub">Forma de pago y preferencias logísticas</div>
+
+  <div class="field">
+    <label>Forma de pago</label>
+    <select id="pago">
+      <option value="">— Elegir —</option>
+      <option>Contado</option><option>7 días</option>
+      <option>15 días</option><option>30 días</option><option>Mixto</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>¿Le interesaría un pack fijo diario?</label>
+    <select id="pack">
+      <option value="">— Elegir —</option>
+      <option>Sí</option><option>No</option><option>Tal vez</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>¿Usa WhatsApp para pedir mercadería?</label>
+    <select id="wapp">
+      <option value="">— Elegir —</option>
+      <option>Sí</option><option>No</option><option>A veces</option>
+    </select>
+  </div>
+</div>
+
+<!-- CARD 7: Encuestador -->
+<div class="card" id="card-7">
+  <div class="card-title">Datos del relevamiento</div>
+  <div class="card-sub">Para identificar quién hizo la visita</div>
+
+  <div class="field" id="f-encuestador">
+    <label>Tu nombre <span class="req">*</span></label>
+    <select id="encuestador">
+      <option value="">— Elegir —</option>
+      <option>Relevador 1</option>
+      <option>Relevador 2</option>
+      <option>Relevador 3</option>
+    </select>
+    <div class="err-msg">Seleccioná tu nombre</div>
+  </div>
+
+  <div class="field" id="f-fecha">
+    <label>Fecha <span class="req">*</span></label>
+    <input type="date" id="fecha">
+    <div class="err-msg">Ingresá la fecha</div>
+  </div>
+
+  <div class="field">
+    <label>Estado del contacto</label>
+    <select id="estado">
+      <option value="">— Elegir —</option>
+      <option>Visitado - completo</option>
+      <option>Visitado - incompleto</option>
+      <option>No estaba</option>
+      <option>Rechazó</option>
+      <option>Llamar después</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Observaciones adicionales</label>
+    <textarea id="obs" placeholder="Cualquier dato relevante..."></textarea>
+  </div>
+</div>
+
+<!-- SUCCESS -->
+<div id="success">
+  <div class="icon">✅</div>
+  <h2>¡Guardado!</h2>
+  <p>Los datos de <strong id="success-name"></strong> se enviaron correctamente a la base de datos.</p>
+  <button class="btn btn-next" onclick="resetForm()">Relevar otro negocio</button>
+</div>
+
+<div class="spacer"></div>
+
+<!-- NAVIGATION -->
+<div class="nav" id="nav-bar">
+  <button class="btn btn-back" id="btn-back" onclick="goBack()">← Atrás</button>
+  <button class="btn btn-next" id="btn-next" onclick="goNext()">Siguiente →</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG — reemplazá con tu URL de Google Apps Script ───────────────────
+const APPS_SCRIPT_URL = "PEGAR_URL_AQUI";
+
+// ── STATE ────────────────────────────────────────────────────────────────
+const TOTAL = 7;
+let current = 1;
+let ratingVal = "";
+
+const sections = [
+  "Identificación", "Contacto", "Compra de pan",
+  "Volumen y proveedor", "Interés", "Condiciones", "Encuestador"
+];
+
+// ── INIT ─────────────────────────────────────────────────────────────────
+(function init() {
+  // set today as default date
+  document.getElementById("fecha").valueAsDate = new Date();
+
+  // build dots
+  const dotsEl = document.getElementById("dots");
+  for (let i = 1; i <= TOTAL; i++) {
+    const d = document.createElement("div");
+    d.className = "dot" + (i === 1 ? " active" : "");
+    d.id = "dot-" + i;
+    dotsEl.appendChild(d);
+  }
+
+  // checkbox visual toggle
+  document.querySelectorAll(".check-item input[type=checkbox]").forEach(cb => {
+    cb.addEventListener("change", function() {
+      this.closest(".check-item").classList.toggle("checked", this.checked);
+    });
+  });
+
+  updateUI();
+})();
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────
+function goNext() {
+  if (!validate(current)) return;
+  if (current === TOTAL) { submitForm(); return; }
+  showCard(current + 1);
+}
+
+function goBack() {
+  if (current > 1) showCard(current - 1);
+}
+
+function showCard(n) {
+  document.getElementById("card-" + current).classList.remove("active");
+  document.getElementById("dot-" + current).classList.remove("active");
+  document.getElementById("dot-" + current).classList.add("done");
+
+  current = n;
+  document.getElementById("card-" + current).classList.add("active");
+
+  // update dots
+  for (let i = 1; i <= TOTAL; i++) {
+    const d = document.getElementById("dot-" + i);
+    d.classList.remove("active","done");
+    if (i < current) d.classList.add("done");
+    if (i === current) d.classList.add("active");
+  }
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  updateUI();
+}
+
+function updateUI() {
+  document.getElementById("pbar").style.width = ((current / TOTAL) * 100) + "%";
+  document.getElementById("sec-label").textContent = `Paso ${current} de ${TOTAL} · ${sections[current-1]}`;
+  document.getElementById("header-sub").textContent = sections[current-1];
+  document.getElementById("btn-back").style.display = current === 1 ? "none" : "";
+  const btnNext = document.getElementById("btn-next");
+  btnNext.textContent = current === TOTAL ? "Enviar ✓" : "Siguiente →";
+  btnNext.className = "btn " + (current === TOTAL ? "btn-send" : "btn-next");
+}
+
+// ── RATING ────────────────────────────────────────────────────────────────
+function setRating(btn) {
+  document.querySelectorAll(".rating-btn").forEach(b => b.classList.remove("sel"));
+  btn.classList.add("sel");
+  ratingVal = btn.dataset.v;
+}
+
+// ── VALIDATION ───────────────────────────────────────────────────────────
+const required = {
+  1: [["f-nombre","nombre"],["f-tipo","tipo"],["f-direccion","direccion"]],
+  3: [["f-vende","vende"]],
+  7: [["f-encuestador","encuestador"],["f-fecha","fecha"]]
+};
+
+function validate(step) {
+  let ok = true;
+  if (!required[step]) return true;
+  required[step].forEach(([fid, iid]) => {
+    const field = document.getElementById(fid);
+    const input = document.getElementById(iid);
+    const empty = !input.value || input.value === "";
+    field.classList.toggle("invalid", empty);
+    if (empty) ok = false;
+  });
+  if (!ok) showToast("Completá los campos obligatorios ⚠️");
+  return ok;
+}
+
+// ── COLLECT DATA ──────────────────────────────────────────────────────────
+function collectData() {
+  const tipos = [...document.querySelectorAll("#tipos-pan input:checked")]
+    .map(c => c.value).join(", ");
+  const otroTipo = document.getElementById("otro-pan").value;
+  const tiposCompleto = [tipos, otroTipo].filter(Boolean).join(", ");
+
+  return {
+    nombre:          document.getElementById("nombre").value,
+    tipo:            document.getElementById("tipo").value,
+    direccion:       document.getElementById("direccion").value,
+    zona:            document.getElementById("zona").value,
+    maps:            document.getElementById("maps").value,
+    duenio:          document.getElementById("duenio").value,
+    telefono:        document.getElementById("telefono").value,
+    horario:         document.getElementById("horario").value,
+    vende:           document.getElementById("vende").value,
+    tiposPan:        tiposCompleto,
+    volumen:         document.getElementById("volumen").value,
+    dias:            document.getElementById("dias").value,
+    proveedor:       document.getElementById("proveedor").value,
+    precio:          document.getElementById("precio").value,
+    comoRecibe:      document.getElementById("como-recibe").value,
+    horarioEntrega:  document.getElementById("horario-entrega").value,
+    problema:        document.getElementById("problema").value,
+    interes:         ratingVal,
+    mejora:          document.getElementById("mejora").value,
+    pago:            document.getElementById("pago").value,
+    pack:            document.getElementById("pack").value,
+    wapp:            document.getElementById("wapp").value,
+    encuestador:     document.getElementById("encuestador").value,
+    fecha:           document.getElementById("fecha").value,
+    estado:          document.getElementById("estado").value,
+    obs:             document.getElementById("obs").value,
+  };
+}
+
+// ── SUBMIT ────────────────────────────────────────────────────────────────
+async function submitForm() {
+  const data = collectData();
+  const btnNext = document.getElementById("btn-next");
+  btnNext.textContent = "Enviando…";
+  btnNext.disabled = true;
+
+  if (APPS_SCRIPT_URL === "PEGAR_URL_AQUI") {
+    // Demo mode: simulate success
+    await new Promise(r => setTimeout(r, 900));
+    showSuccess(data.nombre);
+    return;
+  }
+
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    showSuccess(data.nombre);
+  } catch (e) {
+    showToast("Error al enviar. Verificá la conexión.");
+    btnNext.textContent = "Enviar ✓";
+    btnNext.disabled = false;
+  }
+}
+
+function showSuccess(name) {
+  document.getElementById("nav-bar").style.display = "none";
+  document.getElementById("dots").style.display = "none";
+  document.getElementById("sec-label").style.display = "none";
+  for (let i = 1; i <= TOTAL; i++)
+    document.getElementById("card-" + i).style.display = "none";
+  document.getElementById("success-name").textContent = name || "el negocio";
+  document.getElementById("success").classList.add("active");
+  document.getElementById("pbar").style.width = "100%";
+  document.getElementById("header-sub").textContent = "¡Encuesta enviada!";
+}
+
+function resetForm() {
+  document.querySelector("body").innerHTML = "";
+  location.reload();
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2800);
+}
+</script>
+</body>
+</html>
