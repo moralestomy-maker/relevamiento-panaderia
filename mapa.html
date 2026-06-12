@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa · Panificadora Resistencia</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #1a1208; color: #fff; height: 100dvh; display: flex; flex-direction: column; }
+
+  header {
+    background: #C17F3A;
+    padding: 12px 16px;
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 1rem; color: #fff; }
+  header small { font-size: .75rem; color: #fdf3e3; opacity: .85; }
+
+  .filters {
+    background: #2a1e0e;
+    padding: 8px 12px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+  .filter-btn {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 2px solid #C17F3A;
+    background: transparent;
+    color: #F5EDD6;
+    font-size: .78rem;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .filter-btn.active { background: #C17F3A; color: #fff; font-weight: bold; }
+
+  #map { flex: 1; width: 100%; }
+
+  .stats {
+    background: #2a1e0e;
+    padding: 7px 16px;
+    display: flex;
+    gap: 20px;
+    flex-shrink: 0;
+    font-size: .8rem;
+    color: #F5EDD6;
+    flex-wrap: wrap;
+  }
+  .stat strong { color: #F4B942; font-size: 1rem; margin-right: 4px; }
+
+  /* Popup */
+  .popup-inner { min-width: 200px; max-width: 260px; font-family: Arial, sans-serif; }
+  .popup-title { font-size: 1rem; font-weight: bold; color: #1a1208; margin-bottom: 2px; }
+  .popup-tipo  { font-size: .7rem; color: #888; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .popup-row   { display: flex; justify-content: space-between; font-size: .8rem; margin-bottom: 3px; }
+  .popup-row .lbl { color: #777; }
+  .popup-row .val { font-weight: bold; color: #1a1208; text-align: right; max-width: 150px; }
+  .popup-badge {
+    margin-top: 8px; padding: 5px 10px; border-radius: 8px;
+    font-size: .78rem; text-align: center; font-weight: bold;
+  }
+  .i5 { background:#d4edda; color:#155724; }
+  .i4 { background:#cce5ff; color:#004085; }
+  .i3 { background:#fff3cd; color:#856404; }
+  .i2,.i1 { background:#f8d7da; color:#721c24; }
+  .i0 { background:#eee; color:#555; }
+  .popup-maps {
+    display: block; margin-top: 8px; text-align: center;
+    font-size: .78rem; color: #C17F3A; text-decoration: none; font-weight: bold;
+  }
+
+  .loading {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    background: #C17F3A; color: #fff; padding: 16px 28px; border-radius: 12px;
+    font-size: 1rem; z-index: 9999; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🥖 Mapa de Relevamiento — Panificadora Resistencia</h1>
+  <small id="subtitle">Cargando datos...</small>
+</header>
+
+<div class="filters">
+  <button class="filter-btn active" data-f="Todos"       onclick="applyFilter(this)">Todos</button>
+  <button class="filter-btn"        data-f="Kiosco"      onclick="applyFilter(this)">🏪 Kioscos</button>
+  <button class="filter-btn"        data-f="Almacén"     onclick="applyFilter(this)">🛒 Almacenes</button>
+  <button class="filter-btn"        data-f="Supermercado" onclick="applyFilter(this)">🏬 Súper</button>
+  <button class="filter-btn"        data-f="Despensa"    onclick="applyFilter(this)">🏠 Despensas</button>
+  <button class="filter-btn"        data-f="Interesado"  onclick="applyFilter(this)">⭐ Interesados</button>
+</div>
+
+<div id="map"><div class="loading" id="loader">📍 Cargando negocios...</div></div>
+
+<div class="stats">
+  <div class="stat"><strong id="s-total">0</strong> relevados</div>
+  <div class="stat"><strong id="s-interes">0</strong> muy interesados</div>
+  <div class="stat"><strong id="s-visible">0</strong> visibles</div>
+</div>
+
+<script>
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTCgKOeVTwmNpoO8Zb2S9XF-ZRBZ4wU1BON437Um1KpfSKOVRaYwB-am2uZpvJr9VWnSJJUzAs9iS1/pub?gid=1999249860&single=true&output=csv";
+const CENTER = [-27.4513, -58.9868];
+
+const TIPO_COLOR = {
+  "Kiosco":       "#e74c3c",
+  "Almacén":      "#3498db",
+  "Supermercado": "#9b59b6",
+  "Despensa":     "#e67e22",
+  "Minimercado":  "#1abc9c",
+  "Verdulería":   "#27ae60",
+  "Panadería":    "#C17F3A",
+  "Otro":         "#95a5a6",
+};
+
+const TIPO_LABEL = {
+  "Kiosco":"K","Almacén":"A","Supermercado":"S","Despensa":"D",
+  "Minimercado":"M","Verdulería":"V","Panadería":"P","Otro":"?"
+};
+
+let map = L.map("map").setView(CENTER, 13);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "© OpenStreetMap"
+}).addTo(map);
+
+let allMarkers = [];
+let currentFilter = "Todos";
+
+function makeIcon(tipo, interes) {
+  const color = TIPO_COLOR[tipo] || "#95a5a6";
+  const label = TIPO_LABEL[tipo] || "?";
+  const size  = interes >= 4 ? 38 : 30;
+  const border = interes >= 4 ? "#FFD700" : "#fff";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 40 40">
+    <circle cx="20" cy="20" r="18" fill="${color}" stroke="${border}" stroke-width="3"/>
+    <text x="20" y="27" text-anchor="middle" font-family="Arial" font-size="17" font-weight="bold" fill="white">${label}</text>
+  </svg>`;
+  return L.divIcon({
+    html: svg,
+    className: "",
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
+    popupAnchor: [0, -size/2]
+  });
+}
+
+function interesClass(n) {
+  if (n >= 5) return "i5";
+  if (n >= 4) return "i4";
+  if (n >= 3) return "i3";
+  if (n >= 2) return "i2";
+  if (n >= 1) return "i1";
+  return "i0";
+}
+
+function row(label, val) {
+  if (!val || val === "-") return "";
+  return `<div class="popup-row"><span class="lbl">${label}</span><span class="val">${val}</span></div>`;
+}
+
+function buildPopup(d) {
+  const interes = parseInt(d["Interés (1-5)"]) || 0;
+  const mapsLink = d["Link Maps"] ?
+    `<a class="popup-maps" href="${d["Link Maps"]}" target="_blank">📍 Ver en Google Maps</a>` : "";
+  return `<div class="popup-inner">
+    <div class="popup-title">${d["Nombre negocio"] || "Sin nombre"}</div>
+    <div class="popup-tipo">${d["Tipo"] || ""} · ${d["Barrio/Zona"] || ""}</div>
+    ${row("Dirección", d["Dirección"])}
+    ${row("Dueño", d["Dueño/Encargado"])}
+    ${row("Teléfono", d["Teléfono"])}
+    ${row("Vende pan", d["¿Vende pan?"])}
+    ${row("Volumen/día", d["Volumen diario (kg)"] ? d["Volumen diario (kg)"] + " kg" : "")}
+    ${row("Proveedor", d["Proveedor actual"])}
+    ${row("Precio", d["Precio actual"])}
+    ${row("Entrega", d["Horario entrega preferido"])}
+    ${row("Pago", d["Forma de pago"])}
+    <div class="popup-badge ${interesClass(interes)}">
+      Interés en cambiar: ${d["Interés (1-5)"] || "No registrado"}
+    </div>
+    ${mapsLink}
+  </div>`;
+}
+
+async function geocodeNominatim(address) {
+  try {
+    const q = encodeURIComponent(address + ", Resistencia, Chaco, Argentina");
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`, {
+      headers: { "Accept-Language": "es" }
+    });
+    const data = await r.json();
+    if (data.length > 0) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+  } catch(e) {}
+  return null;
+}
+
+function extractCoordsFromMaps(url) {
+  if (!url) return null;
+  const m = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m) return [parseFloat(m[1]), parseFloat(m[2])];
+  const m2 = url.match(/q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m2) return [parseFloat(m2[1]), parseFloat(m2[2])];
+  return null;
+}
+
+async function loadData() {
+  try {
+    const resp = await fetch(CSV_URL);
+    const text = await resp.text();
+    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+    const rows = parsed.data.filter(d => d["Nombre negocio"]);
+
+    document.getElementById("s-total").textContent = rows.length;
+    document.getElementById("s-interes").textContent =
+      rows.filter(d => parseInt(d["Interés (1-5)"]) >= 4).length;
+    document.getElementById("subtitle").textContent =
+      `${rows.length} negocios relevados · Actualizá la página para ver cambios nuevos`;
+
+    for (let i = 0; i < rows.length; i++) {
+      const d = rows[i];
+      const tipo = d["Tipo"] || "Otro";
+      const interes = parseInt(d["Interés (1-5)"]) || 0;
+
+      // Get coordinates
+      let coords = extractCoordsFromMaps(d["Link Maps"]);
+      if (!coords && d["Dirección"]) {
+        await new Promise(r => setTimeout(r, 1100 * i)); // respect Nominatim rate limit
+        coords = await geocodeNominatim(d["Dirección"]);
+      }
+      if (!coords) {
+        // Random near center if no address
+        coords = [
+          CENTER[0] + (Math.random() - 0.5) * 0.03,
+          CENTER[1] + (Math.random() - 0.5) * 0.03
+        ];
+      }
+
+      const marker = L.marker(coords, { icon: makeIcon(tipo, interes) })
+        .bindPopup(buildPopup(d), { maxWidth: 280 })
+        .addTo(map);
+
+      allMarkers.push({ marker, tipo, interes });
+    }
+
+    document.getElementById("loader").style.display = "none";
+    updateStats();
+
+  } catch(err) {
+    document.getElementById("loader").textContent = "Error al cargar datos. Revisá la conexión.";
+    console.error(err);
+  }
+}
+
+function applyFilter(btn) {
+  document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  currentFilter = btn.dataset.f;
+
+  allMarkers.forEach(({ marker, tipo, interes }) => {
+    let show = false;
+    if (currentFilter === "Todos") show = true;
+    else if (currentFilter === "Interesado") show = interes >= 4;
+    else show = tipo === currentFilter;
+
+    if (show) map.addLayer(marker);
+    else map.removeLayer(marker);
+  });
+
+  updateStats();
+}
+
+function updateStats() {
+  const visible = allMarkers.filter(({ marker }) => map.hasLayer(marker)).length;
+  document.getElementById("s-visible").textContent = visible;
+}
+
+loadData();
+</script>
+</body>
+</html>
